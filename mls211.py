@@ -1,5 +1,6 @@
 import argparse
 import pathlib
+from decimal import ROUND_HALF_UP, Decimal
 from io import StringIO
 
 import numpy as np
@@ -100,6 +101,12 @@ class StandardCurveAnalyser:
         df_samples[col_conc] = df_samples[col_conc].round(1)
         return df_samples
 
+def round_half_up(data: pd.Series, target_str: str) -> pd.Series:
+    target = Decimal(target_str)
+    data = data.apply(
+        lambda x: Decimal(str(x)).quantize(target, rounding=ROUND_HALF_UP)
+    )
+    return data
 
 def main() -> None:
     
