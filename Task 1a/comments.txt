@@ -1,0 +1,10 @@
+Calculation of the relative error and relative precision should use density corrected values prior to rounding. Rounding should only be done to report the results.
+
+Working for preparation of standard curve for at least one standard was not present.
+
+Data analysis 4: Sample was diluted 1/5 so it is necessary to multiply the glucose concentration by 5.
+
+Lab exercise 3: Would also like a couple of words on when a positive displacement pipette might be used including viscous or volatile liquids
+
+Astle TW. Small Volume Pipetting. JALA: Journal of the Association for Laboratory Automation. 1998;3(3):62-64. doi:10.1177/221106829800300317
+  
