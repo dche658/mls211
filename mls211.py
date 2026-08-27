@@ -52,24 +52,41 @@ class ExcelWriter:
 
         workbook.save(output_path)
 
-class StandardCurveAnalyser:
-    """A class to analyze standard curves from pandas dataframe."""
+class StandardCurveBuilder:
+    """Build the standard curve from the aborbances and known values"""
+    def __init__(self):
+        self.df: pd.DataFrame = None
 
-    def __init__(self, df: pd.DataFrame, col_std: int, col_abs1: int, col_abs2: int):
-        self.df = df
-        self.col_std = col_std
-        self.col_abs1 = col_abs1
-        self.col_abs2 = col_abs2
-        self.slope = 0
+    def read(self, text:str):
+        # Use StringIO to treat the string as a file-like object
+        data = StringIO(text)
+        self.df = pd.read_csv(data, sep=" ", header=None)
+        return self
 
-    def calculate_std_curve(self) -> pd.DataFrame:
-        self.df["Mean_Abs"] = self.df.iloc[:, [self.col_abs1, self.col_abs2]].mean(axis=1)
+    def set_colnames(self, colnames: list[str]):
+        if not len(colnames) == self.df.shape[1]:
+            raise ValueError(f"Expected {len(colnames)} columns but data contains {self.df.shape[1]}.")
+        else:
+            self.df.columns = colnames
+        return self
+
+    def calc_abs_means(self, absorbance_cols: list[str]):
+        self.df["Mean_Abs"] = self.df.loc[:, absorbance_cols].mean(axis=1)
         self.df["Blanked_Abs"] = self.df['Mean_Abs'] - self.df['Mean_Abs'].iloc[0]
+        return self
+
+    def build(self) -> pd.DataFrame:
         return self.df
 
-    def linear_regression(self, col1: int, col2: int) -> tuple[float, float]:
-        x = self.df.iloc[:, col1].array
-        y = self.df.iloc[:, col2].array
+class StandardCurveAnalyser:
+    """A class to analyze standard curves from pandas dataframe."""
+    def __init__(self, df: pd.DataFrame):
+        self.df = df
+        self.slope = 0
+
+    def linear_regression(self, std_col: str, abs_col:str) -> tuple[float, float]:
+        x = self.df.loc[:, std_col].array
+        y = self.df.loc[:, abs_col].array
         if len(x) != len(y):
             raise ValueError("x and y must have the same length.")
         # Reshape to a column matix for the least squares calculation
@@ -79,13 +96,13 @@ class StandardCurveAnalyser:
         self.slope = slope[0]
         return (slope[0], 0)  # Return slope and intercept (0)
 
-    def r_squared_forced_through_origin(self, col1: int, col2: int) -> float:
+    def r_squared_forced_through_origin(self, std_col: str, abs_col:str) -> float:
         """Calculate R-squared for a linear regression forced through the origin."""
-        x = self.df.iloc[:, col1].array
-        y = self.df.iloc[:, col2].array
+        x = self.df.loc[:, std_col].array
+        y = self.df.loc[:, abs_col].array
         if len(x) != len(y):
             raise ValueError("x and y must have the same length.")
-        slope, _ = self.linear_regression(col1, col2)
+        slope, _ = self.linear_regression(std_col, abs_col)
         y_pred = slope * x
         ss_res = np.sum((y - y_pred) ** 2)
         #ss_tot = np.sum((y - np.mean(y)) ** 2)
@@ -93,9 +110,8 @@ class StandardCurveAnalyser:
         r_squared = 1 - (ss_res / ss_tot)
         return r_squared
 
-    def calculate_sample_concentration(self, df_samples: pd.DataFrame, col_conc: str, idx_abs1:int, idx_abs2:int, col_abs: str, dilution_factor: float) -> pd.DataFrame:
-        df_samples["Mean_Abs"] = df_samples.iloc[:, [idx_abs1, idx_abs2]].mean(axis=1)
-        df_samples["Blanked_Abs"] = df_samples['Mean_Abs'] - self.df['Mean_Abs'].iloc[0]
+    def calculate_sample_concentration(self, df_samples: pd.DataFrame, col_conc: str, col_abs: str, dilution_factor: float) -> pd.DataFrame:
+        df_samples[col_abs] = df_samples['Mean_Abs'] - self.df['Mean_Abs'].iloc[0]
         
         df_samples[col_conc] = df_samples[col_abs].div(self.slope).mul(dilution_factor)
         df_samples[col_conc] = df_samples[col_conc].round(1)
