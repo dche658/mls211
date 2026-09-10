@@ -1,11 +1,14 @@
 import argparse
+import math
 import pathlib
 from decimal import ROUND_HALF_UP, Decimal
 from io import StringIO
 
+import matplotlib.pyplot as plt
 import numpy as np
 import openpyxl
 import pandas as pd
+from scipy.optimize import curve_fit
 
 DEFAULT_INPUT_FILE = "./Task 1a/task1atable3.txt"
 DEFAULT_EXCEL_FILE = "./Task 1a/Task 1a.xlsx"
@@ -56,6 +59,10 @@ class StandardCurveBuilder:
     """Build the standard curve from the aborbances and known values"""
     def __init__(self):
         self.df: pd.DataFrame = None
+
+    def set_dataframe(self, df: pd.DataFrame):
+        self.df = df
+        return self
 
     def read(self, text:str):
         # Use StringIO to treat the string as a file-like object
@@ -123,6 +130,151 @@ def round_half_up(data: pd.Series, target_str: str) -> pd.Series:
         lambda x: Decimal(str(x)).quantize(target, rounding=ROUND_HALF_UP)
     )
     return data
+
+class PolynomialFit:
+    def __init__(self, df: pd.DataFrame):
+        self.df = df
+
+    def fit(self ,x_col:str, y_col:str):
+        x_data = self.df[x_col]
+        y_data = self.df[y_col]
+        model = np.polynomial.Polynomial.fit(x_data,y_data, deg=[1,2], domain=[])
+        return model
+
+    def r_squared(self, x_data, y_data, model):
+        y_pred = model(x_data)
+        ss_res = np.sum((y_data - y_pred) ** 2)
+        ss_tot = np.sum((y_data - np.mean(y_data)) ** 2)
+        r_squared = 1 - (ss_res / ss_tot)
+        return r_squared
+
+
+class QuadraticFit:
+    def __init__(self, df: pd.DataFrame):
+        self.df = df
+
+    # Define quadratic function with no intercept (c = 0)
+    def quadratic_through_zero(self, x, a, b):
+        return a * x**2 + b * x
+
+    def inv_quadratic_through_zero(self, y, a, b):
+        return ((-1*b)+math.sqrt(b**2  + (4*a*y)))/(2*a)
+
+    def fit(self,x_col:str, y_col:str):
+        #np.random.seed(42)
+        #x_data = np.array([0.1, 0.3, 1.0, 3.0, 10.0, 30.0, 100.0, 300.0])
+        x_data = self.df[x_col]
+ 
+        # Add realistic noise
+        y_data = self.df[y_col]
+
+        # Fit the curve
+        popt, pcov = curve_fit(self.quadratic_through_zero, x_data, y_data)
+        a_opt, b_opt = popt
+
+        return (a_opt, b_opt)
+
+    def r_squared_through_zero(self, x_data, y_data, a, b):
+        residuals = y_data - self.quadratic_through_zero(x_data, a, b)
+        ss_res = np.sum(residuals**2)
+        ss_tot = np.sum((y_data - np.mean(y_data)) ** 2)
+        return 1- (ss_res/ss_tot)
+
+    def plot(self, x_col:str, y_col:str, parameters: (float)):
+        x_data = self.df[x_col]
+        y_data = self.df[y_col]
+        # 5. Plot the result
+        x_smooth = np.arange(x_data.min(), x_data.max(), 1)
+        y_smooth = self.quadratic_through_zero(x_smooth, *parameters)
+
+        plt.figure(figsize=(8, 5))
+        plt.scatter(x_data, y_data, color='red', label='Data Points', zorder=5)
+        plt.plot(x_smooth, y_smooth, color='blue', label='Quadratic Fitted Curve', lw=2)
+        plt.xlabel('Concentration / Dose (Log Scale)')
+        plt.ylabel('Response / OD')
+        plt.title('Quadratic Curve Fit')
+        plt.legend()
+        plt.grid(True, which="both", ls="--", alpha=0.5)
+        plt.show()
+
+class FourParamLogisticFit:
+    def __init__(self, df: pd.DataFrame):
+        self.df = df
+
+    # 1. Define the 4-parameter logistic function
+    def four_pl(self, x, A, B, C, D):
+        """
+        A = Minimum asymptote
+        B = Hill slope
+        C = Inflection point (EC50)
+        D = Maximum asymptote
+        """
+        return A + (D - A) / (1.0 + (x / C) ** B)
+
+    def inv_four_pl(self, y, A, B, C, D):
+        return C * ((((D-A)/(y-A))-1)**(1/B))
+
+    def fit(self,x_col:str, y_col:str):
+        #np.random.seed(42)
+        #x_data = np.array([0.1, 0.3, 1.0, 3.0, 10.0, 30.0, 100.0, 300.0])
+        x_data = self.df[x_col]
+ 
+        # Add realistic noise
+        y_data = self.df[y_col]
+
+        # 3. Provide initial guesses (Crucial for non-linear optimization convergence)
+        # Guessing based on data attributes:
+        initial_A = np.min(y_data).item()
+        initial_B = 1.0  # Standard starting slope
+        initial_C = np.median(x_data).item()  # Middle concentration
+        initial_D = np.max(y_data).item()
+        p0 = [initial_A, initial_B, initial_C, initial_D]
+
+        # 4. Fit the curve
+        # bounds can be added if parameters must stay positive: bounds=(0, np.inf)
+        popt, pcov = curve_fit(self.four_pl, x_data, y_data, p0=p0)
+
+        # Extract optimized parameters
+        fitted_A, fitted_B, fitted_C, fitted_D = popt
+
+        return (fitted_A, fitted_B, fitted_C, fitted_D)
+
+    def print_parameters(self, parameters: (float)):
+
+        print("Fitted Parameters:")
+        print(f"A (Min Asymptote): {parameters[0]:.4f}")
+        print(f"B (Hill Slope)   : {parameters[1]:.4f}")
+        print(f"C (EC50/IC50)    : {parameters[2]:.4f}")
+        print(f"D (Max Asymptote): {parameters[3]:.4f}")
+
+    def plot(self, x_col:str, y_col:str, parameters: (float)):
+        x_data = self.df[x_col]
+        y_data = self.df[y_col]
+        # 5. Plot the result
+        x_smooth = np.logspace(np.log10(x_data.min()), np.log10(x_data.max()), 200)
+        y_smooth = self.four_pl(x_smooth, *parameters)
+
+        plt.figure(figsize=(8, 5))
+        plt.scatter(x_data, y_data, color='red', label='Data Points', zorder=5)
+        plt.plot(x_smooth, y_smooth, color='blue', label='4PL Fitted Curve', lw=2)
+        plt.xscale('log')  # Symmetrical S-shapes are best viewed on log-scale x-axes
+        plt.xlabel('Concentration / Dose (Log Scale)')
+        plt.ylabel('Response / OD')
+        plt.title('4-Parameter Logistic (4PL) Curve Fit')
+        plt.legend()
+        plt.grid(True, which="both", ls="--", alpha=0.5)
+        plt.show()
+
+def format_dataframe(df: pd.DataFrame, colnames: list[str], del_rows: list[int]) -> pd.DataFrame:
+    if len(del_rows) > 0:
+        df = df.drop(labels=del_rows, axis=0)
+        df = df.reset_index(drop=True)
+    if len(colnames) > 0:
+        if len(colnames) != df.shape[1]:
+            raise ValueError(f"Dataframe has {df.shape[1]} columns but colnames list has {len(colnames)} entries.")
+        df.columns = colnames
+    return df
+
 
 def main() -> None:
     
