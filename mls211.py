@@ -169,7 +169,7 @@ class QuadraticFit:
         y_data = self.df[y_col]
 
         # Fit the curve
-        popt, pcov = curve_fit(self.quadratic_through_zero, x_data, y_data)
+        popt, _pcov = curve_fit(self.quadratic_through_zero, x_data, y_data)
         a_opt, b_opt = popt
 
         return (a_opt, b_opt)
