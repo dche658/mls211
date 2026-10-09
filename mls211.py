@@ -157,10 +157,10 @@ class QuadraticFit:
     def quadratic_through_zero(self, x, a, b):
         return a * x**2 + b * x
 
-    def inv_quadratic_through_zero(self, y, a, b):
-        return ((-1*b)+math.sqrt(b**2  + (4*a*y)))/(2*a)
+    def inv_quadratic_through_zero(self, y:float, a:float, b:float)->(float):
+        return (((-1*b)+math.sqrt(b**2  + (4*a*y)))/(2*a), ((-1*b)-math.sqrt(b**2  + (4*a*y)))/(2*a))
 
-    def fit(self,x_col:str, y_col:str):
+    def fit(self,x_col:str, y_col:str)->(float):
         #np.random.seed(42)
         #x_data = np.array([0.1, 0.3, 1.0, 3.0, 10.0, 30.0, 100.0, 300.0])
         x_data = self.df[x_col]
@@ -174,7 +174,7 @@ class QuadraticFit:
 
         return (a_opt, b_opt)
 
-    def r_squared_through_zero(self, x_data, y_data, a, b):
+    def r_squared_through_zero(self, x_data:pd.Series, y_data:pd.Series, a:float, b:float)->float:
         residuals = y_data - self.quadratic_through_zero(x_data, a, b)
         ss_res = np.sum(residuals**2)
         ss_tot = np.sum((y_data - np.mean(y_data)) ** 2)
@@ -232,7 +232,7 @@ class FourParamLogisticFit:
 
         # 4. Fit the curve
         # bounds can be added if parameters must stay positive: bounds=(0, np.inf)
-        popt, pcov = curve_fit(self.four_pl, x_data, y_data, p0=p0)
+        popt, _pcov = curve_fit(self.four_pl, x_data, y_data, p0=p0)
 
         # Extract optimized parameters
         fitted_A, fitted_B, fitted_C, fitted_D = popt
