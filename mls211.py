@@ -25,7 +25,7 @@ class TableConverter:
             df = pd.read_csv(infile, sep=" ", header=None)
             return df
 
-    def text_to_pandas_dataframe(self, text) -> pd.DataFrame:
+    def text_to_pandas_dataframe(self, text: str) -> pd.DataFrame:
         """Convert a space-separated text string into a pandas DataFrame."""
 
         # Use StringIO to treat the string as a file-like object
@@ -157,10 +157,10 @@ class QuadraticFit:
     def quadratic_through_zero(self, x, a, b):
         return a * x**2 + b * x
 
-    def inv_quadratic_through_zero(self, y:float, a:float, b:float)->(float):
+    def inv_quadratic_through_zero(self, y:float, a:float, b:float)-> tuple[float,float]:
         return (((-1*b)+math.sqrt(b**2  + (4*a*y)))/(2*a), ((-1*b)-math.sqrt(b**2  + (4*a*y)))/(2*a))
 
-    def fit(self,x_col:str, y_col:str)->(float):
+    def fit(self,x_col:str, y_col:str)-> tuple[float,float]:
         #np.random.seed(42)
         #x_data = np.array([0.1, 0.3, 1.0, 3.0, 10.0, 30.0, 100.0, 300.0])
         x_data = self.df[x_col]
