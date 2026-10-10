@@ -202,7 +202,7 @@ class FourParamLogisticFit:
         self.df = df
 
     # 1. Define the 4-parameter logistic function
-    def four_pl(self, x, A, B, C, D):
+    def four_pl(self, x:float, A:float, B:float, C:float, D:float) -> float:
         """
         A = Minimum asymptote
         B = Hill slope
@@ -211,10 +211,10 @@ class FourParamLogisticFit:
         """
         return A + (D - A) / (1.0 + (x / C) ** B)
 
-    def inv_four_pl(self, y, A, B, C, D):
+    def inv_four_pl(self, y:float, A:float, B:float, C:float, D:float) -> float:
         return C * ((((D-A)/(y-A))-1)**(1/B))
 
-    def fit(self,x_col:str, y_col:str):
+    def fit(self,x_col:str, y_col:str) -> tuple[float,float,float,float]:
         #np.random.seed(42)
         #x_data = np.array([0.1, 0.3, 1.0, 3.0, 10.0, 30.0, 100.0, 300.0])
         x_data = self.df[x_col]
