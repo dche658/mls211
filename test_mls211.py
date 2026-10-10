@@ -40,7 +40,7 @@ def test_quadraticfit():
     p1 = quadratic.inv_quadratic_through_zero(0.7, *qmodel)
     p2 = quadratic.inv_quadratic_through_zero(0.055, *qmodel)
     r_squared = quadratic.r_squared_through_zero(df["Std"], df["Blanked_Abs"], *qmodel)
-    print(f"Patient 1: {p1:.0f} ng/L; Patient 2: {p2:.0f} ng/L")
+    print(f"Patient 1: {p1[0]:.0f} ng/L; Patient 2: {p2[0]:.0f} ng/L")
     print(f"R-squared: {r_squared:.4f}")
     #quadratic.plot("Std","Blanked_Abs", qmodel)
 
@@ -61,6 +61,6 @@ def test_polynomialfit():
     print(f"R-squared: {r_squared}")
 
 if __name__=="__main__":
-    #test_4plfit()
+    test_4plfit()
     test_polynomialfit()
     test_quadraticfit()
